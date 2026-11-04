@@ -1,0 +1,17 @@
+[package]
+name = "iced_t3"
+version = "0.1.0"
+edition = "2024"
+description = "T3 Code's dark design language for Iced: theme, fonts, icons, widgets and client-side window decorations"
+license = "MIT"
+repository = "https://github.com/synsejse/iced_t3"
+readme = "README.md"
+keywords = ["iced", "gui", "theme", "design-system"]
+categories = ["gui"]
+
+[dependencies]
+iced = { version = "=0.14.0", default-features = false, features = ["advanced", "x11", "wayland", "thread-pool", "tiny-skia"] }
+
+[dev-dependencies]
+iced = { version = "=0.14.0", default-features = false, features = ["wgpu", "tiny-skia", "crisp", "web-colors", "x11", "wayland", "tokio", "advanced"] }
+pollster = "0.4"
