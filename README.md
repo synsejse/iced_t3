@@ -48,8 +48,8 @@ fn view(_: &()) -> Element<'_, Message> {
 fn main() -> iced::Result {
     iced::application(|| (), update, view)
         .theme(|_: &()| iced_t3::theme())
-        .settings(iced_t3::settings())
-        .window(chrome::window_settings())
+        .settings(iced_t3::settings_for("my-app"))
+        .window(chrome::window_settings_for("my-app"))
         .run()
 }
 ```
@@ -67,6 +67,9 @@ struct update syntax, for example to set a window size.
 | `icon` | Every Lucide icon as a `char` constant |
 | `style` | Style functions for Iced's own widgets, such as `style::slider`, `style::input` and `style::pick_list` |
 | `widget` | Buttons, `switch`, `segmented`, `setting`, `section`, `composer`, `breadcrumb`, `alert`, `badge`, `tooltip`, `empty_state`, `modal`, `dialog`, `scroll`, `icon_button`, `icon_toggle`, `icon_choice`, `swatch`, `dots`, `spinner`, `check` and more |
+| `widget` forms | `checkbox`, `input`, `search`, plus `switch` and `segmented` |
+| `widget` navigation | `tab`, `tabs`, selectable `chip`, `list_row`, `accordion` |
+| `widget` surfaces | `card`, `stat`, `progress`, `shortcut`, `avatar`, static `skeleton` |
 | `widget` sidebar | `sidebar`, `sidebar_nav`, `sidebar_group` with `sidebar_choice` and `radio`, `sidebar_device`, and T3 Code's thread rows `sidebar_row` and `sidebar_item` |
 | `chrome` | `frame`, `titlebar`, `bar`, `controls`, `drag_region`, `perform` |
 | `focusable` | Adds Tab and Enter/Space to any widget that takes a press |
@@ -104,8 +107,27 @@ drag the window too. Dragging starts only once the pointer moves a few pixels,
 so a click or double-click on a titlebar stays a click. Double-clicking toggles
 maximize.
 
-On Wayland, set `platform_specific.application_id` to the basename of your
-desktop entry, or the taskbar can't match the window to its icon.
+Use `settings_for(id)` and `chrome::window_settings_for(id)` with the basename of
+your desktop entry to set the application and Wayland identities.
+
+## Gallery and migration
+
+The gallery has six pages: Buttons, Forms, Navigation, Surfaces, Feedback and
+Typography. Controls share live state; notices dismiss, accordions expand, and
+the footer opens a modal. Each page scrolls independently of its navigation. Start on a specific page with
+`cargo run --example gallery -- surfaces`.
+
+See [MIGRATION.md](MIGRATION.md) for every breaking change and its replacement.
+
+Render all pages with the software renderer, including narrow windows:
+
+```sh
+GALLERY_CAPTURE_DIR=target/gallery cargo test --example gallery
+```
+
+`TileSize::{Compact, Standard, Large}` gives icon tiles even 32, 36 and 48px
+bounds. New components use the same fonts, surfaces, borders and semantic tones
+as the original widgets. Skeletons are static; loaders still animate themselves.
 
 ## Limitations
 
