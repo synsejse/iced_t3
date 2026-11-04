@@ -65,11 +65,12 @@ struct update syntax, for example to set a window size.
 | `color` | Design tokens: surfaces, text levels, tones and hairlines |
 | `font` | `REGULAR`, `MEDIUM`, `SEMIBOLD`, `ICONS` |
 | `icon` | Every Lucide icon as a `char` constant |
-| `style` | Style functions for Iced's own widgets, such as `style::slider` and `style::input` |
-| `widget` | Buttons, `switch`, `segmented`, `setting`, `section`, `composer`, `breadcrumb`, `alert`, `badge`, `tooltip`, `empty_state`, `scroll`, `icon_button`, `icon_toggle`, `dots`, `spinner` and more |
-| `widget` sidebar | `sidebar`, `sidebar_nav`, `sidebar_group` with `sidebar_choice` and `radio`, and T3 Code's thread rows `sidebar_row` and `sidebar_item` |
+| `style` | Style functions for Iced's own widgets, such as `style::slider`, `style::input` and `style::pick_list` |
+| `widget` | Buttons, `switch`, `segmented`, `setting`, `section`, `composer`, `breadcrumb`, `alert`, `badge`, `tooltip`, `empty_state`, `modal`, `dialog`, `scroll`, `icon_button`, `icon_toggle`, `icon_choice`, `swatch`, `dots`, `spinner`, `check` and more |
+| `widget` sidebar | `sidebar`, `sidebar_nav`, `sidebar_group` with `sidebar_choice` and `radio`, `sidebar_device`, and T3 Code's thread rows `sidebar_row` and `sidebar_item` |
 | `chrome` | `frame`, `titlebar`, `bar`, `controls`, `drag_region`, `perform` |
 | `focusable` | Adds Tab and Enter/Space to any widget that takes a press |
+| `cancellable` | Lets Escape abandon a drag, for example on a slider |
 
 Interactive widgets take `Option<Message>`. `None` draws them disabled and takes
 them out of Tab order. Keyboard focus shows a ring; a mouse click does not.

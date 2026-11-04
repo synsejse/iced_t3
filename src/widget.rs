@@ -6,8 +6,8 @@ use iced::advanced::widget::Id;
 use iced::widget::text::LineHeight;
 use iced::widget::{
     Column, Row, Scrollable, Space, Text, button as iced_button, column,
-    container, row, scrollable, stack, text as iced_text, toggler,
-    tooltip as iced_tooltip,
+    container, mouse_area, opaque, row, scrollable, stack, text as iced_text,
+    toggler, tooltip as iced_tooltip,
 };
 use iced::{Color, Element, Length, Padding};
 
@@ -65,12 +65,13 @@ fn text_button<'a, Message: Clone + 'a>(
     size: u32,
     padding: [u16; 2],
     on_press: Option<Message>,
+    style: fn(&iced::Theme, iced_button::Status) -> iced_button::Style,
 ) -> Element<'a, Message> {
     focusable(
         label.clone(),
         iced_button(text(label, size).font(font::MEDIUM))
             .padding(padding)
-            .style(style::primary)
+            .style(style)
             .on_press_maybe(on_press.clone()),
         on_press,
     )
@@ -96,7 +97,14 @@ pub fn primary<'a, Message: Clone + 'a>(
     label: impl Into<String>,
     on_press: Option<Message>,
 ) -> Element<'a, Message> {
-    text_button(label.into(), 13, [6, 11], on_press)
+    text_button(label.into(), 13, [6, 11], on_press, style::primary)
+}
+/// A destructive action, such as the confirmation in a [`dialog`].
+pub fn danger<'a, Message: Clone + 'a>(
+    label: impl Into<String>,
+    on_press: Option<Message>,
+) -> Element<'a, Message> {
+    text_button(label.into(), 13, [6, 11], on_press, style::danger)
 }
 /// [`primary`] while its action runs: dots replace the label.
 pub fn primary_busy<'a, Message: Clone + 'a>(
@@ -109,7 +117,7 @@ pub fn primary_small<'a, Message: Clone + 'a>(
     label: impl Into<String>,
     on_press: Option<Message>,
 ) -> Element<'a, Message> {
-    text_button(label.into(), 12, [4, 9], on_press)
+    text_button(label.into(), 12, [4, 9], on_press, style::primary)
 }
 /// [`primary_small`] while its action runs.
 pub fn primary_small_busy<'a, Message: Clone + 'a>(
@@ -153,6 +161,14 @@ pub fn ghost<'a, Message: Clone + 'a>(
 ) -> Element<'a, Message> {
     icon_label(glyph, label.into(), on_press, style::ghost)
 }
+/// A destructive action that isn't the main one on its surface.
+pub fn ghost_danger<'a, Message: Clone + 'a>(
+    glyph: char,
+    label: impl Into<String>,
+    on_press: Option<Message>,
+) -> Element<'a, Message> {
+    icon_label(glyph, label.into(), on_press, style::ghost_danger)
+}
 fn square_button<'a, Message: Clone + 'a>(
     id: impl Into<Id>,
     glyph: char,
@@ -185,6 +201,32 @@ pub fn icon_toggle<'a, Message: Clone + 'a>(
     on_press: Option<Message>,
 ) -> Element<'a, Message> {
     square_button(id, glyph, on_press, style::icon_toggle(active))
+}
+/// [`icon_toggle`] for a choice that isn't a warning, such as linking two values.
+/// `active` tints it blue, so swap `glyph` too.
+pub fn icon_choice<'a, Message: Clone + 'a>(
+    id: impl Into<Id>,
+    glyph: char,
+    active: bool,
+    on_press: Option<Message>,
+) -> Element<'a, Message> {
+    square_button(id, glyph, on_press, style::icon_choice(active))
+}
+/// A round color choice, ringed while `selected`.
+pub fn swatch<'a, Message: Clone + 'a>(
+    id: impl Into<Id>,
+    color: Color,
+    selected: bool,
+    on_press: Option<Message>,
+) -> Element<'a, Message> {
+    focusable(
+        id,
+        iced_button(Space::new().width(20).height(20))
+            .padding(0)
+            .style(style::swatch(color, selected))
+            .on_press_maybe(on_press.clone()),
+        on_press,
+    )
 }
 /// A switch, with its own label when no [`setting`] row names it.
 pub fn switch<'a, Message: Clone + 'a>(
@@ -289,6 +331,28 @@ pub fn alert<'a, Message: 'a>(
     .style(style::alert(tone))
     .into()
 }
+/// An [`alert`] the user can close.
+pub fn alert_dismissible<'a, Message: Clone + 'a>(
+    id: impl Into<Id>,
+    glyph: char,
+    message: impl IntoFragment<'a>,
+    tone: Tone,
+    on_dismiss: Message,
+) -> Element<'a, Message> {
+    container(
+        row![
+            icon(glyph),
+            text(message, 13).width(Length::Fill),
+            icon_button(id, crate::icon::X, Some(on_dismiss)),
+        ]
+        .spacing(10)
+        .align_y(iced::Center),
+    )
+    .padding(Padding::from([8, 14]).right(8))
+    .width(Length::Fill)
+    .style(style::alert(tone))
+    .into()
+}
 /// A glyph in a small bordered square.
 pub fn icon_tile<'a, Message: 'a>(
     glyph: char,
@@ -321,6 +385,45 @@ pub fn empty_state<'a, Message: 'a>(
         .padding([72, 24])
         .center_x(Length::Fill)
         .into()
+}
+/// The card of a [`modal`]: a title, what is at stake and the actions, last one
+/// rightmost.
+pub fn dialog<'a, Message: 'a>(
+    title: impl IntoFragment<'a>,
+    description: impl IntoFragment<'a>,
+    actions: impl IntoIterator<Item = Element<'a, Message>>,
+) -> Element<'a, Message> {
+    container(
+        column![
+            text(title, 16).font(font::SEMIBOLD),
+            text(description, 13).color(color::MUTED),
+            Space::new().height(6),
+            container(Row::with_children(actions).spacing(8))
+                .align_right(Length::Fill),
+        ]
+        .spacing(8),
+    )
+    .padding(20)
+    .max_width(440)
+    .style(style::dialog)
+    .into()
+}
+/// Puts `dialog` in the middle of `base`, which stops taking input. Pressing the
+/// scrim around it sends `on_dismiss`.
+pub fn modal<'a, Message: Clone + 'a>(
+    base: impl Into<Element<'a, Message>>,
+    dialog: impl Into<Element<'a, Message>>,
+    on_dismiss: Message,
+) -> Element<'a, Message> {
+    let scrim =
+        container(Space::new().width(Length::Fill).height(Length::Fill))
+            .style(style::scrim);
+    stack![
+        base.into(),
+        mouse_area(opaque(scrim)).on_press(on_dismiss),
+        container(opaque(dialog)).center(Length::Fill),
+    ]
+    .into()
 }
 /// A vertical scroller with T3 Code's thin overlay scrollbar.
 pub fn scroll<'a, Message: 'a>(
@@ -549,6 +652,15 @@ pub fn sidebar_choice<'a, Message: Clone + 'a>(
         on_press,
     )
 }
+/// A green check for a change that just succeeded. It fits the slot of a [`radio`]
+/// or [`dots`], so swapping between them moves nothing.
+pub fn check<'a, Message: 'a>() -> Element<'a, Message> {
+    icon(crate::icon::CIRCLE_CHECK)
+        .size(14)
+        .line_height(LineHeight::Absolute(14.0.into()))
+        .color(color::SUCCESS)
+        .into()
+}
 /// The marker of a single-choice option.
 pub fn radio<'a, Message: 'a>(selected: bool) -> Element<'a, Message> {
     let center: Element<'a, Message> = if selected {
@@ -565,6 +677,37 @@ pub fn radio<'a, Message: 'a>(selected: bool) -> Element<'a, Message> {
         .center_y(14)
         .style(style::radio_ring(selected))
         .into()
+}
+/// A device or account at the foot of the sidebar: `media` beside a title and a
+/// detail line. With `on_press` it is a row to pick, otherwise just a label.
+pub fn sidebar_device<'a, Message: Clone + 'a>(
+    id: impl Into<Id>,
+    media: impl Into<Element<'a, Message>>,
+    title: impl IntoFragment<'a>,
+    detail: impl IntoFragment<'a>,
+    selected: bool,
+    on_press: Option<Message>,
+) -> Element<'a, Message> {
+    let content = row![
+        media.into(),
+        column![text(title, 13).font(font::MEDIUM), muted(detail).size(11)]
+            .spacing(2)
+            .width(Length::Fill),
+    ]
+    .spacing(10)
+    .align_y(iced::Center);
+    if on_press.is_none() {
+        return container(content).padding([6, 8]).into();
+    }
+    focusable(
+        id,
+        iced_button(content)
+            .width(Length::Fill)
+            .padding([6, 8])
+            .style(style::sidebar_row(selected))
+            .on_press_maybe(on_press.clone()),
+        on_press,
+    )
 }
 /// A sidebar row laid out like a T3 Code thread.
 pub struct SidebarRow<'a> {

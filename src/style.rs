@@ -1,14 +1,14 @@
 //! Style functions for Iced's built-in widgets.
 use crate::color::{
-    BACKGROUND, BORDER, DANGER, FOREGROUND, HOVER, INPUT, MUTED, PRIMARY,
-    RAISED, SELECTED, SIDEBAR, SIDEBAR_BORDER, SUBDUED, SUCCESS, TRACK,
-    WARNING,
+    BACKGROUND, BORDER, DANGER, FOREGROUND, HOVER, INPUT, INSET, MUTED,
+    PRIMARY, RAISED, SELECTED, SIDEBAR, SIDEBAR_BORDER, SUBDUED, SUCCESS,
+    TRACK, WARNING,
 };
 use iced::{
-    Border, Color, Theme,
+    Border, Color, Shadow, Theme, Vector,
     widget::{
-        button, container, scrollable, slider as iced_slider, text_input,
-        toggler,
+        button, container, overlay::menu, pick_list as iced_pick_list,
+        scrollable, slider as iced_slider, text_input, toggler,
     },
 };
 /// `disabled:opacity-64`
@@ -77,6 +77,10 @@ pub fn sidebar(_: &Theme) -> container::Style {
         ..Default::default()
     }
 }
+/// A recessed area inside a panel, for a chart or canvas.
+pub fn inset(_: &Theme) -> container::Style {
+    surface(INSET, white(0.04), 12.0)
+}
 pub fn popover(_: &Theme) -> container::Style {
     surface(RAISED, BORDER, 6.0)
 }
@@ -84,6 +88,24 @@ pub fn icon_tile(_: &Theme) -> container::Style {
     container::Style {
         text_color: Some(FOREGROUND),
         ..surface(RAISED, BORDER, 6.0)
+    }
+}
+/// The dimmed backdrop behind a [`modal`](crate::widget::modal).
+pub fn scrim(_: &Theme) -> container::Style {
+    container::Style {
+        background: Some(Color::BLACK.scale_alpha(0.6).into()),
+        ..Default::default()
+    }
+}
+/// The card of a [`dialog`](crate::widget::dialog).
+pub fn dialog(_: &Theme) -> container::Style {
+    container::Style {
+        shadow: Shadow {
+            color: Color::BLACK.scale_alpha(0.5),
+            offset: Vector::new(0.0, 12.0),
+            blur_radius: 32.0,
+        },
+        ..surface(RAISED, BORDER, PANEL_RADIUS)
     }
 }
 /// A horizontal or vertical rule inside a surface.
@@ -170,6 +192,17 @@ pub fn primary(_: &Theme, status: button::Status) -> button::Style {
     };
     control(Some(fill), Color::WHITE, fill, CONTROL_RADIUS, status)
 }
+/// A destructive action.
+pub fn danger(_: &Theme, status: button::Status) -> button::Style {
+    let tint = if hovered(status) { 0.32 } else { 0.24 };
+    control(
+        Some(DANGER.scale_alpha(tint)),
+        DANGER,
+        Color::TRANSPARENT,
+        CONTROL_RADIUS,
+        status,
+    )
+}
 pub fn outline(_: &Theme, status: button::Status) -> button::Style {
     let fill = if hovered(status) {
         white(0.07)
@@ -181,6 +214,11 @@ pub fn outline(_: &Theme, status: button::Status) -> button::Style {
 pub fn ghost(_: &Theme, status: button::Status) -> button::Style {
     let fill = hovered(status).then_some(HOVER);
     control(fill, FOREGROUND, Color::TRANSPARENT, CONTROL_RADIUS, status)
+}
+/// [`danger`] without a fill until hovered.
+pub fn ghost_danger(_: &Theme, status: button::Status) -> button::Style {
+    let fill = hovered(status).then(|| DANGER.scale_alpha(0.16));
+    control(fill, DANGER, Color::TRANSPARENT, CONTROL_RADIUS, status)
 }
 /// Titlebar and toolbar icons: muted until hovered.
 pub fn ghost_muted(_: &Theme, status: button::Status) -> button::Style {
@@ -204,6 +242,46 @@ pub fn icon_toggle(
             6.0,
             status,
         )
+    }
+}
+/// [`icon_toggle`] for a neutral choice: blue while active.
+pub fn icon_choice(
+    active: bool,
+) -> impl Fn(&Theme, button::Status) -> button::Style {
+    move |theme, status| {
+        if !active {
+            return ghost_muted(theme, status);
+        }
+        let tint = if hovered(status) { 0.32 } else { 0.24 };
+        control(
+            Some(PRIMARY.scale_alpha(tint)),
+            FOREGROUND,
+            Color::TRANSPARENT,
+            6.0,
+            status,
+        )
+    }
+}
+/// A round color choice: a ring marks the selected one.
+pub fn swatch(
+    color: Color,
+    selected: bool,
+) -> impl Fn(&Theme, button::Status) -> button::Style {
+    move |_, status| {
+        let ring = if selected {
+            FOREGROUND
+        } else if hovered(status) {
+            MUTED
+        } else {
+            INPUT
+        };
+        button::Style {
+            border: Border {
+                width: if selected { 2.0 } else { 1.0 },
+                ..control(None, FOREGROUND, ring, 10.0, status).border
+            },
+            ..control(Some(color), FOREGROUND, ring, 10.0, status)
+        }
     }
 }
 pub fn segment(
@@ -340,6 +418,47 @@ pub fn input_quiet(
             ..style.border
         },
         ..style
+    }
+}
+/// A dropdown. Pair it with [`pick_list_menu`].
+pub fn pick_list(
+    _: &Theme,
+    status: iced_pick_list::Status,
+) -> iced_pick_list::Style {
+    let (fill, border) = match status {
+        iced_pick_list::Status::Active => (white(0.035), INPUT),
+        iced_pick_list::Status::Hovered => (white(0.07), INPUT),
+        iced_pick_list::Status::Opened { .. } => (white(0.07), PRIMARY),
+    };
+    iced_pick_list::Style {
+        text_color: FOREGROUND,
+        placeholder_color: MUTED,
+        handle_color: MUTED,
+        background: fill.into(),
+        border: Border {
+            color: border,
+            width: 1.0,
+            radius: CONTROL_RADIUS.into(),
+        },
+    }
+}
+/// The open list of a [`pick_list`].
+pub fn pick_list_menu(_: &Theme) -> menu::Style {
+    menu::Style {
+        background: RAISED.into(),
+        border: Border {
+            color: BORDER,
+            width: 1.0,
+            radius: CONTROL_RADIUS.into(),
+        },
+        text_color: FOREGROUND,
+        selected_text_color: FOREGROUND,
+        selected_background: SELECTED.into(),
+        shadow: Shadow {
+            color: Color::BLACK.scale_alpha(0.4),
+            offset: Vector::new(0.0, 6.0),
+            blur_radius: 16.0,
+        },
     }
 }
 /// A horizontal or vertical slider: the rail fills up to a ring-shaped handle.

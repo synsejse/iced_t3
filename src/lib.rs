@@ -43,7 +43,7 @@ mod loader;
 pub mod style;
 pub mod widget;
 
-pub use focus::focusable;
+pub use focus::{cancellable, focusable};
 pub use style::Tone;
 
 /// The Iced theme. Widgets without a style from [`style`] pick up these colors.

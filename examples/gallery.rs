@@ -248,6 +248,12 @@ impl Gallery {
                             Some(Message::Noop)
                         ),
                         t3::ghost(icon::UNDO_2, "Ghost", Some(Message::Noop)),
+                        t3::ghost_danger(
+                            icon::TRASH_2,
+                            "Delete…",
+                            Some(Message::Noop)
+                        ),
+                        t3::danger("Danger", Some(Message::Noop)),
                         t3::icon_toggle(
                             "mute",
                             if self.enabled {
@@ -255,6 +261,22 @@ impl Gallery {
                             } else {
                                 icon::VOLUME_2
                             },
+                            self.enabled,
+                            Some(Message::Enabled(!self.enabled)),
+                        ),
+                        t3::icon_choice(
+                            "link",
+                            if self.enabled {
+                                icon::LOCK
+                            } else {
+                                icon::LOCK_OPEN
+                            },
+                            self.enabled,
+                            Some(Message::Enabled(!self.enabled)),
+                        ),
+                        t3::swatch(
+                            "swatch",
+                            color::SUCCESS,
                             self.enabled,
                             Some(Message::Enabled(!self.enabled)),
                         ),
@@ -274,6 +296,13 @@ fn feedback<'a>() -> iced::widget::Column<'a, Message> {
     column![
         t3::alert(icon::CIRCLE_ALERT, "Something failed.", Tone::Danger),
         t3::alert(icon::TRIANGLE_ALERT, "Check this first.", Tone::Warning),
+        t3::alert_dismissible(
+            "dismiss",
+            icon::CIRCLE_ALERT,
+            "This one can be closed.",
+            Tone::Danger,
+            Message::Noop,
+        ),
         row![
             t3::badge("Live", Tone::Success),
             t3::badge("Updating", Tone::Warning),

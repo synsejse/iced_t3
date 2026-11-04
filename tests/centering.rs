@@ -236,3 +236,13 @@ fn dots_move_around_the_center_of_a_button() {
         1.5,
     );
 }
+#[test]
+fn a_choice_keeps_its_height_whatever_its_marker() {
+    let height = |marker: View| {
+        let view = t3::sidebar_choice("id", None, "HH", marker, true, Some(()));
+        Ink::render(view, Size::new(240.0, 100.0)).height
+    };
+    let radio = height(t3::radio(true));
+    assert_eq!(height(t3::dots()), radio);
+    assert_eq!(height(t3::check()), radio);
+}

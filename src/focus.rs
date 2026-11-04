@@ -25,6 +25,20 @@ pub fn focusable<'a, Message: Clone + 'a>(
     })
 }
 
+/// Lets Escape abandon a pointer gesture in `content`, such as a slider drag.
+/// The widget forgets the press, so releasing it later changes nothing. The app
+/// restores the value itself, for example from an Escape shortcut.
+pub fn cancellable<'a, Message: Clone + 'a>(
+    content: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    Element::new(KeyboardButton {
+        id: widget::Id::unique(),
+        content: content.into(),
+        on_press: None,
+        cancel_drag: true,
+    })
+}
+
 struct KeyboardButton<'a, Message> {
     id: widget::Id,
     content: Element<'a, Message>,
@@ -210,5 +224,166 @@ impl<Message: Clone> Widget<Message, Theme, Renderer>
             viewport,
             renderer,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use iced::{
+        Point,
+        advanced::{
+            clipboard, renderer::Headless,
+            widget::operation::focusable as focus,
+        },
+        widget::{button, checkbox, slider},
+    };
+
+    #[derive(Debug, Clone, PartialEq)]
+    enum Message {
+        Press,
+        Value(u16),
+        Released,
+    }
+
+    struct Harness {
+        renderer: Renderer,
+        content: Element<'static, Message>,
+        tree: Tree,
+        node: layout::Node,
+    }
+    impl Harness {
+        fn new(mut content: Element<'static, Message>) -> Self {
+            let renderer = pollster::block_on(<Renderer as Headless>::new(
+                iced::Font::DEFAULT,
+                16.0.into(),
+                Some("tiny-skia"),
+            ))
+            .expect("software renderer");
+            let mut tree = Tree::new(&content);
+            let node = content.as_widget_mut().layout(
+                &mut tree,
+                &renderer,
+                &layout::Limits::new(Size::ZERO, Size::new(320.0, 80.0)),
+            );
+            Self {
+                renderer,
+                content,
+                tree,
+                node,
+            }
+        }
+        fn focus(&mut self, id: &str) {
+            let mut operation =
+                focus::focus::<()>(widget::Id::from(id.to_owned()));
+            self.content.as_widget_mut().operate(
+                &mut self.tree,
+                Layout::new(&self.node),
+                &self.renderer,
+                &mut operation,
+            );
+        }
+        fn event(
+            &mut self,
+            event: &Event,
+            cursor: mouse::Cursor,
+        ) -> (Vec<Message>, iced::event::Status) {
+            let mut messages = Vec::new();
+            let mut shell = Shell::new(&mut messages);
+            self.content.as_widget_mut().update(
+                &mut self.tree,
+                event,
+                Layout::new(&self.node),
+                cursor,
+                &self.renderer,
+                &mut clipboard::Null,
+                &mut shell,
+                &self.node.bounds(),
+            );
+            let status = shell.event_status();
+            (messages, status)
+        }
+    }
+
+    fn key(named: keyboard::key::Named) -> Event {
+        Event::Keyboard(keyboard::Event::KeyPressed {
+            key: keyboard::Key::Named(named),
+            modified_key: keyboard::Key::Named(named),
+            physical_key: keyboard::key::Physical::Unidentified(
+                keyboard::key::NativeCode::Unidentified,
+            ),
+            location: keyboard::Location::Standard,
+            modifiers: keyboard::Modifiers::empty(),
+            text: None,
+            repeat: false,
+        })
+    }
+
+    #[test]
+    fn a_focused_button_publishes_once_for_enter_and_space() {
+        let mut control = Harness::new(focusable(
+            "apply",
+            button("Apply").on_press(Message::Press),
+            Some(Message::Press),
+        ));
+        control.focus("apply");
+        for named in [keyboard::key::Named::Enter, keyboard::key::Named::Space]
+        {
+            let (messages, status) =
+                control.event(&key(named), mouse::Cursor::Unavailable);
+            assert_eq!(messages, [Message::Press]);
+            assert_eq!(status, iced::event::Status::Captured);
+        }
+    }
+    #[test]
+    fn a_disabled_button_cannot_focus_or_publish() {
+        let mut control =
+            Harness::new(focusable("disabled", button("Disabled"), None));
+        control.focus("disabled");
+        assert!(!control.tree.state.downcast_ref::<Focus>().is_focused());
+        for named in [keyboard::key::Named::Enter, keyboard::key::Named::Space]
+        {
+            let (messages, status) =
+                control.event(&key(named), mouse::Cursor::Unavailable);
+            assert!(messages.is_empty());
+            assert_eq!(status, iced::event::Status::Ignored);
+        }
+    }
+    #[test]
+    fn a_focused_checkbox_toggles_once_with_space() {
+        let checkbox =
+            checkbox(false).label("Check").on_toggle(|_| Message::Press);
+        let mut control =
+            Harness::new(focusable("check", checkbox, Some(Message::Press)));
+        control.focus("check");
+        let (messages, status) = control.event(
+            &key(keyboard::key::Named::Space),
+            mouse::Cursor::Unavailable,
+        );
+        assert_eq!(messages, [Message::Press]);
+        assert_eq!(status, iced::event::Status::Captured);
+    }
+    #[test]
+    fn escape_cancels_a_slider_drag_without_a_release_commit() {
+        let slider = slider(1_u16..=32000, 800, Message::Value)
+            .on_release(Message::Released);
+        let mut control = Harness::new(cancellable(slider));
+        let bounds = control.node.bounds();
+        let cursor = mouse::Cursor::Available(Point::new(
+            bounds.center_x(),
+            bounds.center_y(),
+        ));
+        let press =
+            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left));
+        let release =
+            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left));
+        let (messages, _) = control.event(&press, cursor);
+        assert!(matches!(messages[..], [Message::Value(_)]));
+        control.event(&key(keyboard::key::Named::Escape), cursor);
+        let (messages, _) = control.event(&release, cursor);
+        assert!(messages.is_empty());
+        control.event(&press, cursor);
+        let (messages, _) = control.event(&release, cursor);
+        assert_eq!(messages, [Message::Released]);
     }
 }

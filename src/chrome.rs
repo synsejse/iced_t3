@@ -151,7 +151,8 @@ pub fn bar<'a, Message: Clone + 'a>(
     tools: Option<Element<'a, Message>>,
     on_action: fn(Action) -> Message,
 ) -> Element<'a, Message> {
-    let mut content = row![leading.into(), Space::new().width(Length::Fill)]
+    // Clipped, so a long title can't push the window controls out of the window.
+    let mut content = row![container(leading).width(Length::Fill).clip(true)]
         .spacing(8)
         .align_y(iced::Center);
     if let Some(tools) = tools {
