@@ -396,6 +396,45 @@ mod tests {
     }
 
     #[test]
+    fn a_long_title_leaves_the_window_controls_in_the_window() {
+        let title = "A title much too long for the window it sits in".repeat(4);
+        let mut bar =
+            bar(widget::text(title, 14), None, std::convert::identity);
+        let mut tree = Tree::new(&bar);
+        let renderer = pollster::block_on(<Renderer as Headless>::new(
+            crate::font::REGULAR,
+            14.0.into(),
+            Some("tiny-skia"),
+        ))
+        .expect("software renderer");
+        let size = Size::new(300.0, 44.0);
+        let node = bar.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(size, size),
+        );
+        // The middle of the close button: 8px of padding and half of its 26px.
+        let position = Point::new(size.width - 21.0, 22.0);
+        let mut messages = Vec::new();
+        for event in [
+            Event::Mouse(mouse::Event::CursorMoved { position }),
+            press(),
+            release(),
+        ] {
+            bar.as_widget_mut().update(
+                &mut tree,
+                &event,
+                Layout::new(&node),
+                mouse::Cursor::Available(position),
+                &renderer,
+                &mut clipboard::Null,
+                &mut Shell::new(&mut messages),
+                &Rectangle::with_size(size),
+            );
+        }
+        assert!(matches!(messages[..], [Action::Close]), "{messages:?}");
+    }
+    #[test]
     fn a_plain_click_never_starts_a_drag() {
         assert!(actions(&[press(), moved(12.0), release()]).is_empty());
     }
