@@ -20,6 +20,8 @@ pub const MUTED: Color = Color::from_rgb8(161, 161, 161);
 /// Row metadata, a step below [`SUBDUED`].
 pub const LABEL: Color = Color::from_rgb8(143, 143, 143);
 pub const PRIMARY: Color = Color::from_rgb8(52, 107, 241);
+/// Keyboard focus: light enough to show on a [`PRIMARY`] button as well.
+pub const FOCUS: Color = Color::from_rgb8(150, 182, 255);
 pub const SUCCESS: Color = Color::from_rgb8(0, 212, 146);
 pub const WARNING: Color = Color::from_rgb8(255, 185, 0);
 pub const DANGER: Color = Color::from_rgb8(255, 100, 103);

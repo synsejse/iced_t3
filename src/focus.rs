@@ -199,7 +199,7 @@ impl<Message: Clone> Widget<Message, Theme, Renderer>
                 renderer::Quad {
                     bounds: layout.bounds(),
                     border: iced::Border {
-                        color: theme.palette().primary,
+                        color: crate::color::FOCUS,
                         width: 2.0,
                         radius: 8.0.into(),
                     },
