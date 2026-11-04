@@ -528,3 +528,25 @@ pub fn scrollbar(
     };
     style
 }
+
+/// Tabs use an accent border to keep the selected page visible.
+pub fn tab(selected: bool) -> impl Fn(&Theme, button::Status) -> button::Style {
+    move |theme, status| {
+        let mut result = ghost(theme, status);
+        if selected {
+            result.border = Border {
+                color: if status == button::Status::Disabled {
+                    PRIMARY.scale_alpha(DISABLED_OPACITY)
+                } else {
+                    PRIMARY
+                },
+                width: 2.0,
+                radius: 4.0.into(),
+            };
+        }
+        result
+    }
+}
+pub fn skeleton(_: &Theme) -> container::Style {
+    filled(INPUT, 6.0)
+}

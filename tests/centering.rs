@@ -46,6 +46,18 @@ impl Ink {
         );
         let bounds = node.size();
         let theme = iced_t3::theme();
+        view.as_widget_mut().update(
+            &mut tree,
+            &iced::Event::Window(iced::window::Event::RedrawRequested(
+                std::time::Instant::now(),
+            )),
+            Layout::new(&node),
+            iced::mouse::Cursor::Unavailable,
+            &renderer,
+            &mut iced::advanced::clipboard::Null,
+            &mut iced::advanced::Shell::new(&mut Vec::new()),
+            &iced::Rectangle::with_size(bounds),
+        );
         view.as_widget().draw(
             &tree,
             &mut renderer,
@@ -239,10 +251,98 @@ fn dots_move_around_the_center_of_a_button() {
 #[test]
 fn a_choice_keeps_its_height_whatever_its_marker() {
     let height = |marker: View| {
-        let view = t3::sidebar_choice("id", None, "HH", marker, true, Some(()));
+        let view = t3::sidebar_choice(
+            "id",
+            t3::SidebarChoice {
+                glyph: None,
+                label: "HH".into(),
+                marker,
+                selected: true,
+            },
+            Some(()),
+        );
         Ink::render(view, Size::new(240.0, 100.0)).height
     };
     let radio = height(t3::radio(true));
     assert_eq!(height(t3::dots()), radio);
     assert_eq!(height(t3::check()), radio);
+}
+
+#[test]
+fn new_labels_are_centered() {
+    let max = Size::new(300.0, 100.0);
+    let bright = |r: u8, _: u8, _: u8| r > 85;
+    for (name, view) in [
+        ("tab", t3::tab("tab", "HH", false, Some(()))),
+        ("chip", t3::chip("chip", "HH", false, Some(()))),
+        ("shortcut", t3::shortcut("HH")),
+        ("avatar", t3::avatar("HH", color::MUTED)),
+        ("input", t3::input("", "HH", Some(|_| ())).into()),
+        ("search", t3::search("", "HH", Some(|_| ())).into()),
+        ("checkbox", t3::checkbox("check", "HH", false, Some(|_| ()))),
+        (
+            "list row",
+            t3::list_row("row", [t3::text("HH", 14).into()], false, Some(())),
+        ),
+    ] {
+        let ink = Ink::render(view, max);
+        // Inspect the text separately from a leading icon.
+        let columns = if name == "search" {
+            36..80
+        } else if name == "checkbox" {
+            34..70
+        } else {
+            all_columns(&ink)
+        };
+        check(
+            name,
+            ink.vertical_offset(
+                columns.start..columns.end.min(ink.size.width),
+                bright,
+            ),
+            TOLERANCE,
+        );
+    }
+}
+
+#[test]
+fn new_surfaces_keep_their_children_on_the_vertical_grid() {
+    fn check_grid(node: Layout<'_>, name: &str) {
+        let bounds = node.bounds();
+        assert_eq!(bounds.y.fract(), 0.0, "{name}: {bounds:?}");
+        assert_eq!(bounds.height.fract(), 0.0, "{name}: {bounds:?}");
+        for child in node.children() {
+            check_grid(child, name);
+        }
+    }
+    let renderer = pollster::block_on(<iced::Renderer as Headless>::new(
+        font::REGULAR,
+        14.into(),
+        Some("tiny-skia"),
+    ))
+    .unwrap();
+    for (name, mut view) in [
+        ("card", t3::card(t3::text("Title", 14)).into()),
+        ("stat", t3::stat("Label", "123", "Detail")),
+        ("progress", t3::progress(0.5, Tone::Success)),
+        ("skeleton", t3::skeleton(101, 15)),
+        (
+            "accordion",
+            t3::accordion(
+                "accordion",
+                "Title",
+                true,
+                t3::text("Details", 14),
+                Some(()),
+            ),
+        ),
+    ] {
+        let mut tree = Tree::new(&view);
+        let node = view.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, Size::new(300.0, 200.0)),
+        );
+        check_grid(Layout::new(&node), name);
+    }
 }

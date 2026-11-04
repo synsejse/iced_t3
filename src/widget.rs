@@ -11,6 +11,7 @@ use iced::widget::{
 };
 use iced::{Color, Element, Length, Padding};
 
+pub use crate::components::*;
 pub use crate::loader::{dots, dots_in, spinner};
 pub use iced::widget::tooltip::Position;
 
@@ -97,33 +98,33 @@ pub fn primary<'a, Message: Clone + 'a>(
     label: impl Into<String>,
     on_press: Option<Message>,
 ) -> Element<'a, Message> {
-    text_button(label.into(), 13, [6, 11], on_press, style::primary)
+    text_button(label.into(), 13, [6, 12], on_press, style::primary)
 }
 /// A destructive action, such as the confirmation in a [`dialog`].
 pub fn danger<'a, Message: Clone + 'a>(
     label: impl Into<String>,
     on_press: Option<Message>,
 ) -> Element<'a, Message> {
-    text_button(label.into(), 13, [6, 11], on_press, style::danger)
+    text_button(label.into(), 13, [6, 12], on_press, style::danger)
 }
 /// [`primary`] while its action runs: dots replace the label.
 pub fn primary_busy<'a, Message: Clone + 'a>(
     label: impl Into<String>,
 ) -> Element<'a, Message> {
-    busy_button(label.into(), 13, [6, 11])
+    busy_button(label.into(), 13, [6, 12])
 }
 /// [`primary`] for dense rows.
 pub fn primary_small<'a, Message: Clone + 'a>(
     label: impl Into<String>,
     on_press: Option<Message>,
 ) -> Element<'a, Message> {
-    text_button(label.into(), 12, [4, 9], on_press, style::primary)
+    text_button(label.into(), 12, [4, 10], on_press, style::primary)
 }
 /// [`primary_small`] while its action runs.
 pub fn primary_small_busy<'a, Message: Clone + 'a>(
     label: impl Into<String>,
 ) -> Element<'a, Message> {
-    busy_button(label.into(), 12, [4, 9])
+    busy_button(label.into(), 12, [4, 10])
 }
 fn icon_label<'a, Message: Clone + 'a>(
     glyph: char,
@@ -141,7 +142,7 @@ fn icon_label<'a, Message: Clone + 'a>(
             .spacing(6)
             .align_y(iced::Center),
         )
-        .padding([6, 11])
+        .padding([6, 12])
         .style(style)
         .on_press_maybe(on_press.clone()),
         on_press,
@@ -353,14 +354,30 @@ pub fn alert_dismissible<'a, Message: Clone + 'a>(
     .style(style::alert(tone))
     .into()
 }
+/// Sizes used for sidebar media and empty-state illustrations.
+#[derive(Debug, Clone, Copy)]
+pub enum TileSize {
+    Compact,
+    Standard,
+    Large,
+}
+impl TileSize {
+    pub const fn pixels(self) -> u32 {
+        match self {
+            Self::Compact => 32,
+            Self::Standard => 36,
+            Self::Large => 48,
+        }
+    }
+}
 /// A glyph in a small bordered square.
 pub fn icon_tile<'a, Message: 'a>(
     glyph: char,
-    size: u32,
+    size: TileSize,
 ) -> Element<'a, Message> {
     container(icon(glyph))
-        .center_x(size)
-        .center_y(size)
+        .center_x(size.pixels())
+        .center_y(size.pixels())
         .style(style::icon_tile)
         .into()
 }
@@ -624,16 +641,26 @@ pub fn sidebar_group<'a, Message: 'a>(
     ]
     .into()
 }
+/// Named content for a single-choice sidebar option.
+pub struct SidebarChoice<'a, Message> {
+    pub glyph: Option<char>,
+    pub label: std::borrow::Cow<'a, str>,
+    pub marker: Element<'a, Message>,
+    pub selected: bool,
+}
 /// One option in a [`sidebar_group`]. `marker` is usually a [`radio`], or a
 /// loader while the choice is being applied.
 pub fn sidebar_choice<'a, Message: Clone + 'a>(
     id: impl Into<Id>,
-    glyph: Option<char>,
-    label: impl Into<String>,
-    marker: impl Into<Element<'a, Message>>,
-    selected: bool,
+    item: SidebarChoice<'a, Message>,
     on_press: Option<Message>,
 ) -> Element<'a, Message> {
+    let SidebarChoice {
+        glyph,
+        label,
+        marker,
+        selected,
+    } = item;
     let mut content = row![].spacing(9).align_y(iced::Center);
     if let Some(glyph) = glyph {
         content = content.push(icon(glyph));
@@ -642,8 +669,8 @@ pub fn sidebar_choice<'a, Message: Clone + 'a>(
         id,
         iced_button(
             content
-                .push(text(label.into(), 13).width(Length::Fill))
-                .push(marker.into()),
+                .push(text(label, 13).width(Length::Fill))
+                .push(marker),
         )
         .width(Length::Fill)
         .padding([7, 9])
@@ -678,27 +705,34 @@ pub fn radio<'a, Message: 'a>(selected: bool) -> Element<'a, Message> {
         .style(style::radio_ring(selected))
         .into()
 }
+/// Named content for a device or account row.
+pub struct SidebarDevice<'a, Message> {
+    pub media: Element<'a, Message>,
+    pub title: std::borrow::Cow<'a, str>,
+    pub detail: std::borrow::Cow<'a, str>,
+    pub selected: bool,
+}
 /// A device or account at the foot of the sidebar: `media` beside a title and a
-/// detail line. With `on_press` it is a row to pick, otherwise just a label.
+/// detail line. Without `on_press` it is disabled.
 pub fn sidebar_device<'a, Message: Clone + 'a>(
     id: impl Into<Id>,
-    media: impl Into<Element<'a, Message>>,
-    title: impl IntoFragment<'a>,
-    detail: impl IntoFragment<'a>,
-    selected: bool,
+    item: SidebarDevice<'a, Message>,
     on_press: Option<Message>,
 ) -> Element<'a, Message> {
+    let SidebarDevice {
+        media,
+        title,
+        detail,
+        selected,
+    } = item;
     let content = row![
-        media.into(),
+        media,
         column![text(title, 13).font(font::MEDIUM), muted(detail).size(11)]
             .spacing(2)
             .width(Length::Fill),
     ]
     .spacing(10)
     .align_y(iced::Center);
-    if on_press.is_none() {
-        return container(content).padding([6, 8]).into();
-    }
     focusable(
         id,
         iced_button(content)
@@ -711,7 +745,7 @@ pub fn sidebar_device<'a, Message: Clone + 'a>(
 }
 /// A sidebar row laid out like a T3 Code thread.
 pub struct SidebarRow<'a> {
-    pub id: &'a str,
+    pub id: Id,
     /// Two letters and a color for the [`tile`].
     pub tile: (&'a str, Color),
     pub meta: String,
@@ -743,7 +777,7 @@ pub fn sidebar_row<'a, Message: Clone + 'a>(
         content = content.push(text(detail, 12).color(color::LABEL));
     }
     focusable(
-        item.id.to_owned(),
+        item.id,
         iced_button(content)
             .width(Length::Fill)
             .padding([8, 10])
@@ -752,22 +786,32 @@ pub fn sidebar_row<'a, Message: Clone + 'a>(
         on_press,
     )
 }
+/// Named content for a compact sidebar row.
+pub struct SidebarItem<'a, Message> {
+    pub media: Element<'a, Message>,
+    pub title: std::borrow::Cow<'a, str>,
+    pub trailing: std::borrow::Cow<'a, str>,
+    pub selected: bool,
+}
 /// A single-line sidebar row, like T3 Code's settled threads.
 pub fn sidebar_item<'a, Message: Clone + 'a>(
     id: impl Into<Id>,
-    tile_content: Element<'a, Message>,
-    title: impl Into<String>,
-    trailing: impl Into<String>,
-    selected: bool,
+    item: SidebarItem<'a, Message>,
     on_press: Option<Message>,
 ) -> Element<'a, Message> {
+    let SidebarItem {
+        media,
+        title,
+        trailing,
+        selected,
+    } = item;
     focusable(
         id,
         iced_button(
             row![
-                tile_content,
-                text(title.into(), 14).width(Length::Fill),
-                text(trailing.into(), 12).color(color::LABEL),
+                media,
+                text(title, 14).width(Length::Fill),
+                text(trailing, 12).color(color::LABEL),
             ]
             .spacing(10)
             .align_y(iced::Center),

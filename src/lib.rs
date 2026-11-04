@@ -36,6 +36,7 @@
 //! ```
 pub mod chrome;
 pub mod color;
+mod components;
 mod focus;
 pub mod font;
 pub mod icon;
@@ -71,5 +72,14 @@ pub fn settings() -> iced::Settings {
             .map(|bytes| std::borrow::Cow::Borrowed(*bytes))
             .collect(),
         ..Default::default()
+    }
+}
+
+/// Font and application identity settings. Use the same ID for
+/// [`chrome::window_settings_for`] and your desktop entry basename.
+pub fn settings_for(id: impl Into<String>) -> iced::Settings {
+    iced::Settings {
+        id: Some(id.into()),
+        ..settings()
     }
 }

@@ -83,6 +83,9 @@ impl<Message: Clone> Widget<Message, Theme, Renderer>
         vec![Tree::new(&self.content)]
     }
     fn diff(&self, tree: &mut Tree) {
+        if self.on_press.is_none() {
+            tree.state.downcast_mut::<Focus>().unfocus();
+        }
         tree.diff_children(std::slice::from_ref(&self.content));
     }
     fn layout(
@@ -208,6 +211,23 @@ impl<Message: Clone> Widget<Message, Theme, Renderer>
                 iced::Color::TRANSPARENT,
             );
         }
+    }
+    fn overlay<'b>(
+        &'b mut self,
+        tree: &'b mut Tree,
+        layout: Layout<'b>,
+        renderer: &Renderer,
+        viewport: &Rectangle,
+        translation: iced::Vector,
+    ) -> Option<iced::advanced::overlay::Element<'b, Message, Theme, Renderer>>
+    {
+        self.content.as_widget_mut().overlay(
+            &mut tree.children[0],
+            layout,
+            renderer,
+            viewport,
+            translation,
+        )
     }
     fn mouse_interaction(
         &self,
@@ -385,5 +405,88 @@ mod tests {
         control.event(&press, cursor);
         let (messages, _) = control.event(&release, cursor);
         assert_eq!(messages, [Message::Released]);
+    }
+    #[test]
+    fn new_press_controls_activate_once_and_skip_disabled_focus() {
+        use crate::widget as t3;
+        for enabled in [true, false] {
+            let press = enabled.then_some(Message::Press);
+            let controls = [
+                t3::checkbox(
+                    "new",
+                    "Check",
+                    false,
+                    enabled.then_some(|_| Message::Press),
+                ),
+                t3::tab("new", "Tab", true, press.clone()),
+                t3::chip("new", "Chip", true, press.clone()),
+                t3::list_row(
+                    "new",
+                    [t3::text("Row", 14).into()],
+                    false,
+                    press.clone(),
+                ),
+                t3::accordion(
+                    "new",
+                    "Details",
+                    false,
+                    t3::text("Hidden", 14),
+                    press,
+                ),
+            ];
+            for control in controls {
+                let mut harness = Harness::new(control);
+                harness.focus("new");
+                for named in
+                    [keyboard::key::Named::Enter, keyboard::key::Named::Space]
+                {
+                    let (messages, _) =
+                        harness.event(&key(named), mouse::Cursor::Unavailable);
+                    assert_eq!(
+                        messages,
+                        if enabled {
+                            vec![Message::Press]
+                        } else {
+                            vec![]
+                        }
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn pointer_focus_does_not_show_a_keyboard_ring() {
+        let mut harness = Harness::new(crate::widget::tab(
+            "tab",
+            "Tab",
+            false,
+            Some(Message::Press),
+        ));
+        harness.focus("tab");
+        assert!(harness.tree.state.downcast_ref::<Focus>().ring);
+        harness.event(
+            &Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+            mouse::Cursor::Available(Point::new(10.0, 10.0)),
+        );
+        let state = harness.tree.state.downcast_ref::<Focus>();
+        assert!(state.focused);
+        assert!(!state.ring);
+    }
+    #[test]
+    fn disabling_a_focused_control_clears_its_ring() {
+        let mut harness = Harness::new(crate::widget::chip(
+            "chip",
+            "Chip",
+            true,
+            Some(Message::Press),
+        ));
+        harness.focus("chip");
+        let disabled =
+            crate::widget::chip::<Message>("chip", "Chip", true, None);
+        disabled.as_widget().diff(&mut harness.tree);
+        let state = harness.tree.state.downcast_ref::<Focus>();
+        assert!(!state.focused);
+        assert!(!state.ring);
     }
 }

@@ -37,6 +37,24 @@ pub fn window_settings() -> window::Settings {
     }
 }
 
+/// Undecorated window settings with a desktop application identity.
+pub fn window_settings_for(id: impl Into<String>) -> window::Settings {
+    let id = id.into();
+    #[cfg(target_os = "linux")]
+    return window::Settings {
+        platform_specific: window::settings::PlatformSpecific {
+            application_id: id,
+            ..Default::default()
+        },
+        ..window_settings()
+    };
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = id;
+        window_settings()
+    }
+}
+
 /// Runs an [`Action`] on the application's window.
 pub fn perform<Message: Send + 'static>(action: Action) -> Task<Message> {
     window::latest().and_then(move |id| match action {
